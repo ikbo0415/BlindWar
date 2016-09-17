@@ -63,63 +63,21 @@ function BinSearch(arr, searchElement, h, l)
 				}
 			}
 
-function BinSearch2(arr, searchPoints, h, l, d)
+function SearchNearest(arr, loc)
 {
-	if(l>h){
-		return null
-	}
-	if(l===h)
+	var retArr;
+	for(var i = 0; i<arr.length; i++)
 	{
-		if(arr[l].searchPoints - searchPoints <= d)
+		for(var j = 0; j<5; j++)
 		{
-			return [arr[l], l];
-		}
-		else
-		{
-			return null
-		}
-	}
-	else
-	{
-		if (l+1 === h)
-		{
-			if(arr[l].searchPoints - searchPoints<=d)
+			if(arr[i]<retArr[j])
 			{
-				return [arr[l], l]
-			}
-			else
-			{
-				if(arr[h].searchPoints - searchPoints<=d)
-				{
-					return [arr[h], h]
-				}
-				else
-				{
-					return null
-				}			
-			}
-		}
-		else
-		{
-			var m = Math.floor((l + h)/2);
-			if (arr[m].searchPoints - searchPoints <= d)
-			{
-				return [arr[m], m]
-			}
-			else
-			{
-				if(searchElement.searchPoints>arr[m].searchPoints)
-				{
-					return search(arr, searchPoints, h, m+1, d)
-				}
-				else
-				{
-					return search(arr, searchPoints, m-1, l, d)
-				}
+				retArr[j] = arr[i];
+				break
 			}
 		}
 	}
-}
+} 
 
 //класс робота			
 function Robot()
@@ -135,7 +93,7 @@ function SearchUser(user, location)
 {
 	this.userId = user.id;
 	this.chatId = user.chatId;
-	this.searchPoints = user.robot.armor*20 + user.robot.damage*10 + user.robot.hitPoints;
+	//this.searchPoints = user.robot.armor*20 + user.robot.damage*10 + user.robot.hitPoints;
 	this.location = location
 }
 
@@ -180,6 +138,7 @@ bot.on('message', function (msg) {
 		var user = BinSearch(users, msg.from, users.length-1, 0); // ищем пользователя среди зарегестрированых
 		var userN; //номер пользователя в массиве зарегестeрированых пользователей
 		var txt = msg.text; //текст сообщения
+		
 		//регистрация пользователя
 		if (txt === '/registration') {
 			if(user === null)
@@ -223,6 +182,7 @@ bot.on('message', function (msg) {
 				bot.sendMessage(chatId, 'Вы уже зарегестрированы', {reply_markup : require('./data/menu/main_menu.json')})
 			}
 		}
+		
 		//если пользователь не зарегистрирован до других команд даже не доходим
 		if(user === null)
 		{
@@ -234,6 +194,7 @@ bot.on('message', function (msg) {
 				userN = user[1];
 				user = user[0];
 		}
+		
 		//поиск противника
 		if(msg.location != null && user.state === "main_menu")
 		{
@@ -295,6 +256,7 @@ bot.on('message', function (msg) {
 				fs.writeFile('./data/Rooms.json', JSON.stringify({rooms}, null, 4))
 			}
 		}
+		
 		//выводим характеристики робота
 		if(txt === 'ХАРАКТЕРИСТИКИ' && (user.state === "main_menu" || user.state === "shop_menu"))
 		{
@@ -305,6 +267,7 @@ bot.on('message', function (msg) {
 						 'Защита - ' + user.robot.armor + '\n';
 			bot.sendMessage(chatId, answer)
 		}
+		
 		//переходим в меню магазина
 		if(txt === 'МАГАЗИН' && user.state === "main_menu")
 		{
@@ -312,6 +275,7 @@ bot.on('message', function (msg) {
 			fs.writeFile('./data/Users.json', JSON.stringify({users}, null, 4))
 			bot.sendMessage(chatId, 'Выберите улучшение для своего робота', {reply_markup : GetShopMenu(user)})
 		}
+		
 		//улучшение оружия
 		if(txt.search('УЛУЧШИТЬ ОРУЖИЕ') != -1 && user.state === "shop_menu")
 		{
@@ -336,6 +300,7 @@ bot.on('message', function (msg) {
 				bot.sendMessage(chatId, 'Нехватает кредитов', {reply_markup : GetShopMenu(users[userN])})				
 			}
 		}
+		
 		//улучшение брони
 		if(txt.search('УЛУЧШИТЬ БРОНЮ') != -1 && user.state === "shop_menu")
 		{
@@ -360,12 +325,37 @@ bot.on('message', function (msg) {
 				bot.sendMessage(chatId, 'Нехватает кредитов', {reply_markup : GetShopMenu(users[userN])})
 			}
 		}
+		
 		//возвращение в главное меню
-		if(txt === "НАЗАД")
+		if(txt === "НАЗАД" && user.state === "shop_menu")
 		{
 			users[userN].state = 'main_menu';
 			fs.writeFile('./data/Users.json', JSON.stringify({users}, null, 4))
 			bot.sendMessage(chatId, 'Главное меню', {reply_markup : require('./data/menu/main_menu.json')})
 		}
+		
+		//отмета поиска
+		if(txt === "ОТМЕНА" && user.state === "search_menu")
+		{
+			var searchUsersArray = jf.ReadFileSync('./data/Search.json').searchUsersArray;
+			var userSearchN = BinSearch(searchUsersArray, user, searchUsersArray.length-1, 0)[1];
+			for(var i = userSearchN; i<searchUsersArray.length; i++)
+			{
+				if(i<searchUsersArray.length-1)
+				{
+					searchUsersArray[i] = searchUsersArray[i+1];
+				}
+				else
+				{
+					searchUsersArray[i] = null
+				}
+			}
+			fs.writeFile('./data/Search.json', JSON.stringify({searchUsersArray}, null, 4));
+			users[userN].state = "main_menu";
+			fs.writeFile('./data/Users.json', JSON.stringify({users}, null, 4))
+			bot.sendMessage(chatId, 'Поиск отменён', reply_markup : require('./data/menu/main_menu.json'))
+		}
+		
+		
 	}
 });
